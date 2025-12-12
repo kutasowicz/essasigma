@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Admin Panel - mObywatel</title>
+    <style>
+        :root {
+            --bg-dark: #09020e;
+            --text-light: #eeeeee;
+            --accent-purple: #9c27b0
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+        body {
+            font-family: Inter, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            padding: 20px
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--accent-purple)
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid rgba(150, 0, 255, .3)
+        }
+        button.tab {
+            padding: 10px 20px;
+            background: 0 0;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 1rem;
+            border-bottom: 3px solid transparent;
+            transition: all .3s
+        }
+        button.tab.active {
+            border-bottom-color: var(--accent-purple);
+            color: var(--accent-purple)
+        }
+        .tab-content {
+            display: none
+        }
+        .tab-content.active {
+            display: block
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, .05);
+            border-radius: 8px;
+            overflow: hidden
+        }
+        td, th {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(150, 0, 255, .2)
+        }
+        th {
+            background: rgba(150, 0, 255, .1);
+            font-weight: 700
+        }
+        button.action {
+            padding: 8px 15px;
+            background: var(--accent-purple);
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600
+        }
+        button.action:hover {
+            opacity: .8
+        }
+        button.action.revoke {
+            background: #f33
+        }
+        button.action.copy {
+            background: #3366ff;
+            margin-left: 5px
+        }
+        button.action.copy.copied {
+            background: #33ff33
+        }
+        .logout {
+            position: fixed;
+            top: 20px;
+            right: 20px
+        }
+        .logout button {
+            padding: 10px 20px;
+            background: #f33;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600
+        }
+    </style>
+</head>
+<body>
+    <div class="logout">
+        <button onclick="logout()">Wyloguj</button>
+    </div>
+    <div class="container">
+        <h1>Admin Panel</h1>
+        <div class="tabs">
+            <button class="tab active" onclick='switchTab("users")'>Uzytkownicy</button>
+            <button class="tab" onclick='switchTab("create")'>Stworz konto</button>
+            <button class="tab" onclick='switchTab("documents")'>Dokumenty</button>
+        </div>
+        <div id="users" class="tab-content active">
+            <h2>Zarzadzanie uzytkownikami</h2>
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nazwa</th>
+                        <th>Dostep</th>
+                        <th>Data rejestracji</th>
+                        <th>Akcja</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="create" class="tab-content">
+            <h2>Stworz nowe konto</h2>
+            <form id="createUserForm" style="max-width:400px">
+                <div class="form-group" style="margin-bottom:15px">
+                    <label for="newUsername" style="display:block;margin-bottom:5px;color:#777">Nazwa uzytkownika:</label>
+                    <input id="newUsername" placeholder="np. john_doe" required style="width:100%;padding:10px;border:1px solid rgba(150,0,255,.3);border-radius:5px;background:rgba(0,0,0,.3);color:#eee">
+                </div>
+                <div class="form-group" style="margin-bottom:15px">
+                    <label for="newPassword" style="display:block;margin-bottom:5px;color:#777">Haslo:</label>
+                    <input id="newPassword" placeholder="np. SecurePass123" required style="width:100%;padding:10px;border:1px solid rgba(150,0,255,.3);border-radius:5px;background:rgba(0,0,0,.3);color:#eee">
+                </div>
+                <button type="submit" style="width:100%;padding:10px;background:#9c27b0;border:none;border-radius:5px;color:#fff;font-weight:600;cursor:pointer">Stworz konto</button>
+                <div id="createMessage" style="margin-top:15px;text-align:center"></div>
+            </form>
+        </div>
+        <div id="documents" class="tab-content">
+            <h2>Wygenerowane dokumenty</h2>
+            <table id="documentsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Uzytkownik</th>
+                        <th>Imie</th>
+                        <th>Nazwisko</th>
+                        <th>PESEL</th>
+                        <th>Data</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        const API_URL = window.location.origin;
+        const admin_user_id = localStorage.getItem("admin_user_id");
+        const admin_username = localStorage.getItem("admin_username");
+
+        function switchTab(tabName) {
+            document.querySelectorAll(".tab-content").forEach(e => e.classList.remove("active"));
+            document.querySelectorAll(".tab").forEach(e => e.classList.remove("active"));
+            document.getElementById(tabName).classList.add("active");
+            event.target.classList.add("active");
+            if (tabName === "users") loadUsers();
+            else if (tabName === "documents") loadDocuments();
+            else if (tabName === "create") setupCreateForm();
+        }
+
+        function setupCreateForm() {
+            const form = document.getElementById("createUserForm");
+            const msg = document.getElementById("createMessage");
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const username = document.getElementById("newUsername").value;
+                const password = document.getElementById("newPassword").value;
+                try {
+                    const res = await fetch(`${API_URL}/api/auth/create-user`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username, password })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        msg.style.color = "#33ff33";
+                        msg.textContent = `Konto "${username}" stworzone pomyslnie!`;
+                        form.reset();
+                    } else {
+                        msg.style.color = "#ff3333";
+                        msg.textContent = `Blad: ${data.error}`;
+                    }
+                } catch (err) {
+                    msg.style.color = "#ff3333";
+                    msg.textContent = `Blad: ${err.message}`;
+                }
+            };
+        }
+
+        async function loadUsers() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/users`);
+                if (!res.ok) throw new Error("Failed to load users");
+                const users = await res.json();
+                document.querySelector("#usersTable tbody").innerHTML = users.map(u => `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td>${u.username}</td>
+                        <td>${u.has_access ? "Tak" : "Nie"}</td>
+                        <td>${new Date(u.created_at).toLocaleDateString("pl-PL")}</td>
+                        <td>
+                            ${u.has_access 
+                                ? `<button class="action revoke" onclick="updateAccess(${u.id}, false)">Zablokuj dostep</button>` 
+                                : `<button class="action" onclick="updateAccess(${u.id}, true)">Daj dostep</button>`}
+                        </td>
+                    </tr>
+                `).join("");
+            } catch (err) {
+                alert("Blad: " + err.message);
+            }
+        }
+
+        async function loadDocuments() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/documents`);
+                if (!res.ok) throw new Error("Failed to load documents");
+                const docs = await res.json();
+                document.querySelector("#documentsTable tbody").innerHTML = docs.map(d => `
+                    <tr>
+                        <td>${d.id}</td>
+                        <td>${d.username}</td>
+                        <td>${d.name}</td>
+                        <td>${d.surname}</td>
+                        <td>${d.pesel}</td>
+                        <td>${new Date(d.created_at).toLocaleDateString("pl-PL")}</td>
+                        <td>
+                            <button class="action copy" onclick="copyLink(${d.id}, ${d.user_id}, this)">Kopiuj link</button>
+                        </td>
+                    </tr>
+                `).join("");
+            } catch (err) {
+                alert("Blad: " + err.message);
+            }
+        }
+
+        function copyLink(docId, userId, btn) {
+            const link = `${window.location.origin}/card-view.html?doc_id=${docId}&user_id=${userId}`;
+            navigator.clipboard.writeText(link).then(() => {
+                btn.textContent = "Skopiowano!";
+                btn.classList.add("copied");
+                setTimeout(() => {
+                    btn.textContent = "Kopiuj link";
+                    btn.classList.remove("copied");
+                }, 2000);
+            }).catch(err => {
+                alert("Blad kopiowania: " + err);
+            });
+        }
+
+        async function updateAccess(userId, hasAccess) {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/users/${userId}/access`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ has_access: hasAccess })
+                });
+                if (res.ok) loadUsers();
+            } catch (err) {
+                alert("Blad: " + err.message);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("admin_user_id");
+            localStorage.removeItem("admin_username");
+            window.location.href = "/admin-login.html";
+        }
+
+        if (!admin_user_id) {
+            window.location.href = "/admin-login.html";
+        }
+        loadUsers();
+    </script>
+</body>
+</html>
